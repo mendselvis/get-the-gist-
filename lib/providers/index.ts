@@ -39,7 +39,8 @@ export async function generatePlan(input: SlideInput) {
       const text = await callers[name](input, ctrl.signal);
       const plan = PlanSchema.parse(extractJson(text));
       const ms = Date.now() - started;
-      console.log(`[plan] ${name} ok ${ms}ms`);
+      const repaired = plan.scenes.filter((s) => s.repaired).length;
+      console.log(`[plan] ${name} ok ${ms}ms, mode ${plan.mode}, ${plan.scenes.length} scenes${repaired ? `, ${repaired} salvaged` : ""}`);
       return { plan, provider: name, ms };
     } catch (err) {
       const why = err instanceof Error ? err.message : String(err);

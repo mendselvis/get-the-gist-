@@ -21,6 +21,15 @@ function toNumber(token: string): number | null {
   return null;
 }
 
+// "6 ns", "9 J", "3.5 m/s" and "6ns": the number, without its unit (code prints bare numbers)
+function withUnit(token: string) {
+  return token.match(/^(-?\d[\d.]*(?:e-?\d+)?)\s*[a-zµΩ°]{1,4}(?:\/[a-z]{1,3})?$/i);
+}
+function withoutUnit(token: string): number | null {
+  const m = withUnit(token);
+  return m ? toNumber(m[1]) : null;
+}
+
 // "x = 2, x = 3" and "3, 2" both become ["2", "3"]; "0x2F3" and "755" both become ["755"]
 function tokens(answer: string, kind: Question["kind"]) {
   let a = answer.trim().replace(/^(answer|ans)\s*[:=]\s*/i, "").replace(/\*\*/g, "");
@@ -35,15 +44,17 @@ function tokens(answer: string, kind: Question["kind"]) {
     .map((t) => t.trim().replace(/\.$/, ""))
     .filter(Boolean)
     .map((t) => {
-      const n = toNumber(t);
+      // with a space, "6 db" is 6 decibels, not the hex number 0x6DB
+      const n = /\s/.test(t) && withUnit(t) ? withoutUnit(t) : (toNumber(t) ?? withoutUnit(t));
       return n === null ? t.toLowerCase().replace(/\s+/g, "") : String(Math.round(n * 1e9) / 1e9);
     })
     .sort();
 }
 
+// compares distinct values, so "0x2F, 47, 0b101111" (one value written three ways) matches "47, 0b101111"
 export function sameAnswer(a: string, b: string, kind: Question["kind"]) {
-  const x = tokens(a, kind);
-  const y = tokens(b, kind);
+  const x = [...new Set(tokens(a, kind))];
+  const y = [...new Set(tokens(b, kind))];
   return x.length === y.length && x.every((t, i) => t === y[i]);
 }
 

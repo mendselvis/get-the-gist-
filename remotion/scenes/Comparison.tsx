@@ -1,13 +1,15 @@
 import type { VisualOf } from "@/lib/schema";
 import { CONTENT_H, Content, PASTELS, SANS, appear, enter, revealFrame, type SceneProps } from "./shared";
 
-// two or three columns side by side; rows appear one at a time
+// two to four columns side by side; rows appear one at a time
 export function ComparisonScene({ visual, local, duration, theme }: SceneProps<VisualOf<"comparison">>) {
   const hasLabels = visual.rows.some((r) => r.label);
   const template = `${hasLabels ? "220px " : ""}repeat(${visual.columns.length}, 1fr)`;
   const headerH = 76;
   const rowH = Math.min(96, (CONTENT_H - headerH - 12 * visual.rows.length) / visual.rows.length);
-  const fontSize = Math.min(28, rowH * 0.36);
+  // four columns are narrower, so their text is a little smaller
+  const fontSize = Math.min(visual.columns.length > 3 ? 24 : 28, rowH * 0.36);
+  const headerSize = visual.columns.length > 3 ? 26 : 32;
   const cell: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
@@ -22,7 +24,7 @@ export function ComparisonScene({ visual, local, duration, theme }: SceneProps<V
       <div style={{ display: "grid", gridTemplateColumns: template, gap: 12, height: headerH, ...enter(appear(local, 0)) }}>
         {hasLabels && <div />}
         {visual.columns.map((c, i) => (
-          <div key={i} style={{ ...cell, justifyContent: "center", background: PASTELS[i], color: "#111", fontSize: 32, fontWeight: 700 }}>
+          <div key={i} style={{ ...cell, justifyContent: "center", background: PASTELS[i], color: "#111", fontSize: headerSize, fontWeight: 700 }}>
             {c}
           </div>
         ))}

@@ -1,3 +1,5 @@
+import { visualText, type Plan } from "@/lib/schema";
+
 // how the student wants the slide handled; undefined lets the model decide
 export type Approach = "solve" | "explain" | "hint";
 
@@ -28,17 +30,22 @@ visuals (diagrams, charts, images) in [square brackets]. At most 300 words. Copy
 suggestions are 3 short questions a curious student might ask next about this slide (at most 12 words each),
 for example "Why does the cache sit between the CPU and RAM?".
 
-First decide the mode. Use "explain" for lecture content. Use "solve" when the slide contains questions,
-exercises, worked problems or past-paper questions; if it mixes both, use "solve" and explain the concepts
-the questions use as part of the solution. If the slide contains questions, solve them. Never just repeat
-a question back. In explain mode, questions and moreQuestions are [].
+STEP 1, DETECT QUESTIONS. Before anything else, read the whole slide and look for questions: anything ending
+in "?", numbered exercises or problems, multiple-choice options, past-paper questions, or instructions such
+as find, calculate, compute, convert, solve, simplify, evaluate, determine, prove, show that, explain why.
+If there is even one, mode MUST be "solve". If it mixes lecture content and questions, still use "solve" and
+explain the concepts the questions use as part of the solution. Use "explain" only when the slide has no
+questions at all. In explain mode, questions and moreQuestions are [].
+
+STEP 2, SOLVE THEM. A solve-mode video works the questions out; it never just reads them back. The student
+can already see the question: what they need is the working and the answer.
 
 Each scene's visual is ONE of these types. Pick the type that best fits that part of the slide:
 - "diagram" for a process or system with parts that pass data or control between them:
   {"type":"diagram","nodes":[{"id":"cpu","label":"CPU"},{"id":"l1","label":"L1 cache"},{"id":"ram","label":"Main memory"}],"edges":[{"from":"cpu","to":"l1"},{"from":"l1","to":"ram"}],"highlight":["l1"]}
 - "list" for 2 to 5 key points:
   {"type":"list","points":["Registers are fastest","L1 is checked first","DRAM is slowest"]}
-- "comparison" for 2 or 3 things side by side:
+- "comparison" for 2 to 4 things side by side:
   {"type":"comparison","columns":["SRAM","DRAM"],"rows":[{"label":"Speed","cells":["Very fast","Slower"]},{"label":"Cost","cells":["High","Low"]}]}
 - "timeline" for events or stages in order:
   {"type":"timeline","events":[{"label":"1945","detail":"Stored-program idea"},{"label":"1971","detail":"First microprocessor"}]}
@@ -60,16 +67,35 @@ Each scene's visual is ONE of these types. Pick the type that best fits that par
 In solve mode:
 - Solve at most 3 questions. If the slide has more, solve the first ones and put each remaining question,
   briefly, in moreQuestions. If solving them all would need more than 8 scenes, solve fewer.
-- For every solved question, add an entry to questions: its text (short), its kind ("numeric" for arithmetic,
+- For every solved question, add an entry to questions: its text, self-contained with every given value it
+  needs (write "A cache has hit time 2 ns, miss rate 2.5%, miss penalty 80 ns. Find AMAT.", not "Find the new
+  AMAT"), its kind ("numeric" for arithmetic,
   algebra, number bases, binary or hex, probability; "mcq" for multiple choice; "code" for code output or
   programming; "open" for anything else), and its final answer as a short canonical value, such as "755",
   "x = 2, x = 3", "5/36", "0xB6" (hexadecimal with 0x) or "0b101111" (binary with 0b). For "mcq", include the options and give the answer as the option letter.
-- Scenes for each question: first a scene that restates the question briefly and says what it is asking
-  (a "list" or "definition" scene, heading like "The question"); then one scene per
-  solution step, using "equation" for maths working and "code" for programming, each narration saying why
-  that step works; then an "answer" scene with the answer and a keyIdea.
-- Multiple choice: explain why the right option is right and why each wrong option is wrong
-  (a "comparison" or "list" scene works well for the options).
+- Scenes for each question, in this order:
+  1. ONE scene that sets the question up: what is given and what is asked (heading like "The question").
+     This is the only scene allowed to restate the question.
+  2. One or more WORKING scenes. Every one must contain working that is NOT written on the slide: a
+     calculation, a substitution, a conversion, a transformation, or a reasoning step. Use "equation" for
+     maths and "code" for programming, and say in the narration why the step works. A scene that only
+     repeats the question, its numbers or its options is not working, and is not allowed here. Show only
+     correct steps: work things out before writing them, and never write a mistake and then correct it.
+  3. An "answer" scene that states the final answer explicitly, in full: the value with its unit (e.g.
+     "6 ns"), or for multiple choice the letter and the option text (e.g. "B) L1 cache"), never just "B".
+     Every solved question gets its own answer scene, including "open" ones.
+- Multiple choice: in the working, explain why the right option is right and why each wrong option is wrong
+  (a "comparison" of all the options, or a "list" scene, works well).
+
+Worked example. Slide: "Q1. A 2 kg ball moves at 3 m/s. Find its kinetic energy." A correct plan has
+"mode":"solve", "questions":[{"text":"A 2 kg ball moves at 3 m/s. Find its kinetic energy.","kind":"numeric","answer":"9 J","options":[]}]
+and these scenes:
+[{"heading":"The question","narration":"We know the ball's mass and speed and need its kinetic energy, so we need the formula that links them.","source":"Find its kinetic energy","visual":{"type":"list","points":["Given: mass m = 2 kg","Given: speed v = 3 m/s","Find: kinetic energy E"]}},
+ {"heading":"Set up the formula","narration":"Kinetic energy depends on mass and the square of speed, so we substitute both values into it.","source":"A 2 kg ball moves at 3 m/s","visual":{"type":"equation","steps":[{"latex":"E = \\\\tfrac{1}{2} m v^2","explanation":"Kinetic energy formula"},{"latex":"E = \\\\tfrac{1}{2} \\\\times 2 \\\\times 3^2","explanation":"Substitute m = 2 and v = 3"}]}},
+ {"heading":"Work it out","narration":"Square the speed first, because the power applies before multiplying, then halve the mass.","source":"Find its kinetic energy","visual":{"type":"equation","steps":[{"latex":"3^2 = 9","explanation":"Square the speed"},{"latex":"E = 1 \\\\times 9 = 9","explanation":"Half of 2 kg is 1"}]}},
+ {"heading":"The answer","narration":"So the ball has 9 joules of kinetic energy. For any kinetic energy question, square the speed before you multiply.","source":"Find its kinetic energy","visual":{"type":"answer","question":"Kinetic energy of the ball","answer":"9 J","keyIdea":"E = ½mv²: square the speed first, and energy is in joules."}}]
+A WRONG plan would have middle scenes like {"type":"list","points":["A 2 kg ball moves at 3 m/s","Find its kinetic energy"]}:
+that only reprints the question and works nothing out.
 
 Rules:
 - 3 to 8 scenes. Mix types within one video when it helps; don't force everything into one type.
@@ -128,6 +154,60 @@ Slide transcript:
 
 Tutor answer to show:
 """${answer}"""`;
+}
+
+/* ---------- checking that solve mode really solved ---------- */
+
+const QUESTION_CUES =
+  /\?|\b(questions?|exercises?|problems?|calculate|compute|find|convert|solve|simplify|evaluate|determine|prove|show that|explain why|which of)\b/i;
+
+function words(s: string) {
+  return new Set(s.toLowerCase().match(/[a-z]{3,}|\d+(?:\.\d+)?/g) ?? []);
+}
+
+// share of a scene's visual text that is already on the slide (1 = it only repeats the slide)
+function overlapWithSlide(visual: unknown, slide: Set<string>) {
+  const w = words(visualText(visual).join(" "));
+  if (w.size < 3) return 0;
+  return [...w].filter((x) => slide.has(x)).length / w.size;
+}
+
+// Returns what's wrong with a parsed plan, for one retry, or null. A question slide explained instead of
+// solved, working scenes that mostly reprint the question, and a missing or letter-only final answer
+// all count.
+export function reviewPlan(plan: Plan, approach?: Approach): string | null {
+  if (plan.mode === "explain") {
+    if (approach !== "explain" && QUESTION_CUES.test(plan.slideText ?? "")) {
+      return `the slide contains questions or exercises, so mode must be "solve" and each question must be worked out step by step and end with an "answer" scene`;
+    }
+    return null;
+  }
+
+  const problems: string[] = [];
+  const scenes = plan.scenes.filter((s) => s.visual.type !== "hint");
+  const answers = scenes.flatMap((s) => (s.visual.type === "answer" ? [s.visual] : []));
+  if (answers.length === 0 || scenes.at(-1)?.visual.type !== "answer") {
+    problems.push(`the video must end with an "answer" scene that states the final answer`);
+  }
+  if (answers.length < plan.questions.length) {
+    problems.push(`every solved question needs its own "answer" scene (${plan.questions.length} questions, ${answers.length} answer scenes)`);
+  }
+  if (answers.some((a) => /^\(?[a-f]\)?\.?$/i.test(a.answer.trim()))) {
+    problems.push(`state multiple-choice answers in full, with the letter and the option text (like "B) L1 cache"), not just the letter`);
+  }
+
+  // working scenes: not the first scene of a question (which may restate it) and not an answer
+  const slide = words([plan.slideText ?? "", ...plan.questions.map((q) => q.text)].join(" "));
+  const working = scenes.filter((s, i) => i > 0 && s.visual.type !== "answer" && scenes[i - 1].visual.type !== "answer");
+  const repeats = working.filter((s) => overlapWithSlide(s.visual, slide) >= 0.8);
+  if (working.length === 0) {
+    problems.push("there are no working scenes between the question and the answer; add the calculation or reasoning steps");
+  } else if (repeats.length * 2 > working.length) {
+    problems.push(
+      "most working scenes just repeat the question text; each one must show a calculation, transformation or reasoning step that is not written on the slide"
+    );
+  }
+  return problems.length ? problems.join("; ") : null;
 }
 
 export function extractJson(text: string) {

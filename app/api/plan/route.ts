@@ -37,7 +37,7 @@ async function verifyPlan(input: SlideInput, plan: Plan, started: number): Promi
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 75000);
   try {
-    const results = await Promise.all(checkable.map(async ({ q, i }) => ({ i, q, r: await checkQuestion(q, ctrl.signal) })));
+    const results = await Promise.all(checkable.map(async ({ q, i }) => ({ i, q, r: await checkQuestion(q, ctrl.signal, plan.slideText) })));
     // timing and outcome only: never question text, answers or keys
     console.log(`[verify] ${results.map(({ i, r }) => `q${i + 1}:${r.status}${r.status === "unchecked" ? ` (${r.reason.slice(0, 80)})` : ""}`).join(" ")}`);
 

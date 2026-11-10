@@ -52,7 +52,8 @@ const ListVisual = z.object({
 const ComparisonVisual = z
   .object({
     type: z.literal("comparison"),
-    columns: upTo(text, 2, 3),
+    // up to 4, so a multiple-choice question can compare all of its options
+    columns: upTo(text, 2, 4),
     rows: upTo(z.object({ label: z.string().trim().optional(), cells: z.array(z.string()) }), 1, 5),
   })
   // every row gets exactly one cell per column
@@ -79,9 +80,11 @@ const latex = text.refine((s) => {
   }
 }, "invalid LaTeX");
 
+const EquationStep = z.object({ latex, explanation: z.string().trim().default("") });
+
 const EquationVisual = z.object({
   type: z.literal("equation"),
-  steps: upTo(z.object({ latex, explanation: z.string().trim().default("") }), 1, 5),
+  steps: upTo(EquationStep, 1, 5),
 });
 
 const CodeVisual = z
@@ -192,6 +195,45 @@ function listFromNarration(narration: string): VisualOf<"list"> {
   return { type: "list", points };
 }
 
+// every piece of text in a visual (labels, points, formulas, cells), without ids and type names
+export function visualText(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (typeof value === "number") return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(visualText);
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([k, v]) => (["type", "id", "from", "to", "highlight", "answer", "verified"].includes(k) ? [] : visualText(v)));
+  }
+  return [];
+}
+
+// LaTeX shown as plain text: \times -> ×, \frac{a}{b} -> (a)/(b), other commands and braces dropped
+function plainLatex(s: string) {
+  return s
+    .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)")
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\(?:text|mathrm)\{([^{}]*)\}/g, "$1")
+    .replace(/\\[a-zA-Z]+|[{}\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// A scene whose visual has bad data keeps as much of its working as it can: an equation keeps the steps
+// KaTeX can render, and anything else becomes a list of the text it contained. Only a visual with no
+// usable text falls back to the narration.
+function salvageVisual(raw: unknown, narration: string): Visual {
+  const v = (raw ?? {}) as { type?: unknown; steps?: unknown };
+  if (v.type === "equation" && Array.isArray(v.steps)) {
+    const steps = v.steps.map((s) => EquationStep.safeParse(s)).filter((r) => r.success).map((r) => r.data);
+    if (steps.length) return { type: "equation", steps: steps.slice(0, 5) };
+  }
+  const points = visualText(raw)
+    .map((t) => capWords(plainLatex(t), 14))
+    .filter((t): t is string => !!t)
+    .slice(0, 5);
+  return points.length ? { type: "list", points } : listFromNarration(narration);
+}
+
 const SceneShell = z.object({
   narration: text,
   source: z.string().optional().transform((s) => capWords(s)),
@@ -201,8 +243,8 @@ const SceneShell = z.object({
 
 export type Scene = z.infer<typeof SceneShell> & { visual: Visual; repaired?: true };
 
-// one bad scene never sinks the video: a scene with an unknown type or bad data becomes a list
-// built from its narration; a scene without narration is dropped
+// one bad scene never sinks the video: a scene with an unknown type or bad data is salvaged (see
+// salvageVisual); a scene without narration is dropped
 const ScenesSchema = z.array(z.unknown()).transform((raw, ctx) => {
   const scenes: Scene[] = [];
   for (const item of raw.slice(0, MAX_SCENES)) {
@@ -212,7 +254,7 @@ const ScenesSchema = z.array(z.unknown()).transform((raw, ctx) => {
     scenes.push(
       visual.success
         ? { ...shell.data, visual: visual.data }
-        : { ...shell.data, visual: listFromNarration(shell.data.narration), repaired: true }
+        : { ...shell.data, visual: salvageVisual(shell.data.visual, shell.data.narration), repaired: true }
     );
   }
   if (scenes.length === 0) {
