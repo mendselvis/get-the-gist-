@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { LogoMark } from "./Logo";
 import { Pill } from "./Pill";
@@ -271,12 +272,103 @@ export function ForStudents() {
   );
 }
 
+const OTARI_URL = "https://otari.ai";
+const external = { target: "_blank", rel: "noopener noreferrer" } as const;
+
+const FOOTER_COLUMNS: { title: string; links: { label: string; href: string; external?: boolean }[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "Try it free", href: "/app" },
+      { label: "How it works", href: "#how-it-works" },
+      { label: "Features", href: "#features" },
+    ],
+  },
+  {
+    title: "Built with",
+    links: [
+      { label: "Otari", href: OTARI_URL, external: true },
+      { label: "Open-weight models", href: "#features" },
+    ],
+  },
+  {
+    title: "Contact",
+    links: [{ label: "Send feedback", href: "mailto:mendselvis@gmail.com?subject=Get%20the%20Gist%20feedback" }],
+  },
+];
+
+const SOCIAL_LINKS = [
+  {
+    label: "Elvis Mends on LinkedIn",
+    href: "https://www.linkedin.com/in/elvis-mends-3834b0243",
+    path: "M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z",
+  },
+  {
+    label: "Elvis Mends on X",
+    href: "https://x.com/ElvisMends1",
+    path: "M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.65l-5.21-6.82-5.97 6.82H1.68l7.73-8.84L1.25 2.25h6.83l4.71 6.23zm-1.16 17.52h1.83L7.08 4.13H5.12z",
+  },
+];
+
+const footerLink = "text-label transition-colors hover:text-[#111]";
+
 export function Footer() {
   return (
-    <footer className="border-t border-line bg-white px-4 py-10 text-[#111] sm:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-2.5 text-center text-sm text-muted sm:flex-row">
-        <LogoMark className="h-5 w-5 text-ink" />
-        <p>Built by Elvis Mends at the University of Cape Coast · Made with Otari by Mozilla.ai</p>
+    <footer className="bg-white px-4 text-[#111] sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-12 py-16 md:flex-row md:justify-between">
+        <div>
+          <Link href="/" className="inline-flex items-center gap-2.5 text-[#111]">
+            <LogoMark className="h-7 w-7" />
+            <span className="text-[17px] font-semibold tracking-tight">Get the Gist</span>
+          </Link>
+          <p className="mt-3 text-sm text-label">Any slide, explained in seconds.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-12 gap-y-10 sm:grid-cols-3 md:gap-x-16">
+          {FOOTER_COLUMNS.map((col) => (
+            <nav key={col.title} aria-label={col.title}>
+              <h2 className="text-sm font-semibold text-[#111]">{col.title}</h2>
+              <ul className="mt-4 space-y-3 text-sm">
+                {col.links.map((l) => (
+                  <li key={l.label}>
+                    {l.href.startsWith("/") ? (
+                      <Link href={l.href} className={footerLink}>
+                        {l.label}
+                      </Link>
+                    ) : (
+                      <a href={l.href} className={footerLink} {...(l.external ? external : {})}>
+                        {l.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 border-t border-[#eee] py-6 text-xs text-label sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+          <p>© 2026 Get the Gist</p>
+          <div className="flex items-center gap-3">
+            <p>Made by Elvis Mends</p>
+            {SOCIAL_LINKS.map((s) => (
+              <a key={s.href} href={s.href} aria-label={s.label} className={footerLink} {...external}>
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d={s.path} />
+                </svg>
+              </a>
+            ))}
+          </div>
+        </div>
+        <a
+          href={OTARI_URL}
+          {...external}
+          className="self-start rounded-full bg-[#f3f4f6] px-3 py-1.5 font-medium text-label transition-colors hover:text-[#111] sm:self-auto"
+        >
+          Powered by Otari
+        </a>
       </div>
     </footer>
   );
