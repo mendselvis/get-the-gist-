@@ -1,26 +1,164 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+
+  /* text: ink for headings, muted for body (AA on every surface),
+     label only on white/near-white (4.5:1 there, fails on pastels) */
+  --color-ink: #111111;
+  --color-muted: #4b5563;
+  --color-label: #6b7280;
+  --color-line: #e8e8ee;
+  --color-sky: #dce8fb;
+  --color-blush: #f9d4f2;
+  --color-butter: #fce38a;
+  --color-mint: #b9f2c5;
+  --color-peach: #ffe3cc;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-marquee: marquee 40s linear infinite;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--r, 0deg));
   }
 }
 
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* hero demo: one 9s loop, each piece offset with animation-delay */
+@keyframes demo-scan {
+  0% {
+    transform: translateY(-10%);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(540%);
+    opacity: 1;
+  }
+  46%,
+  100% {
+    transform: translateY(540%);
+    opacity: 0;
+  }
+}
+
+@keyframes demo-pop {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  36%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* opacity hides the arrowhead marker too, which stroke-dashoffset alone doesn't */
+@keyframes demo-draw {
+  0%,
+  34% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  35% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  42%,
+  88% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  94%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes demo-glow {
+  0%,
+  44% {
+    fill: #f4f4f7;
+  }
+  50%,
+  62% {
+    fill: #fce38a;
+  }
+  68%,
+  100% {
+    fill: #f4f4f7;
+  }
+}
+
+.demo-scan {
+  animation: demo-scan 9s ease-in-out infinite;
+}
+.demo-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: demo-pop 9s ease-out infinite backwards;
+}
+.demo-draw {
+  stroke-dasharray: 1;
+  animation: demo-draw 9s ease-out infinite backwards;
+}
+.demo-glow {
+  animation: demo-glow 9s ease-in-out infinite;
+}
+
+/* the design is light-only: dark system settings must not flip colors or form controls */
+html {
+  color-scheme: light;
+  background: #ffffff;
+  color: #111111;
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #111111;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* with motion off, show the finished diagram instead of a blank stage */
+  .demo-pop,
+  .demo-draw {
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+    transform: none !important;
+  }
+  .demo-scan {
+    opacity: 0 !important;
+  }
 }
