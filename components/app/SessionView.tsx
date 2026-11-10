@@ -146,7 +146,7 @@ export default function SessionView() {
         key={session.id}
         plan={session.plan}
         meta={session.meta}
-        initialMessages={session.messages}
+        initialMessages={session.messages ?? []}
         onMessagesChange={saveMessages}
         onSolveQuestion={(q) => solveQuestion(session, q)}
         solveUnavailable={

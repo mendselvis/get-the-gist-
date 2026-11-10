@@ -8,7 +8,7 @@ import type { StoredMessage } from "@/lib/sessions";
 
 function VerificationBadges({ plan }: { plan: Plan }) {
   if (!plan.verification?.length) return null;
-  const many = plan.questions.length > 1;
+  const many = (plan.questions ?? []).length > 1;
   const label = (v: Verification) => (many ? `Question ${v.question + 1}: ` : "");
   return (
     <ul className="mt-3 flex flex-wrap gap-2" aria-label="Answer checks">
@@ -54,6 +54,8 @@ export function Explanation({
   const sectionRef = useRef<HTMLElement>(null);
 
   // "Give me a hint first": play only the leading hint scenes until the student asks for the rest
+  // older saved plans and some model replies have no moreQuestions
+  const moreQuestions = plan.moreQuestions ?? [];
   const hintCount = plan.scenes.findIndex((s) => s.visual.type !== "hint");
   const hasHint = hintCount > 0;
   const [revealed, setRevealed] = useState(!hasHint);
@@ -93,12 +95,12 @@ export function Explanation({
           {actions}
         </div>
 
-        {revealed && plan.moreQuestions.length > 0 && (
+        {revealed && moreQuestions.length > 0 && (
           <div className="mt-5 rounded-[24px] border border-line bg-white p-5">
             <h2 className="font-semibold">More questions on this slide</h2>
             <p className="mt-0.5 text-sm text-muted">{solveUnavailable ?? "Pick one to solve next."}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {plan.moreQuestions.map((q) => (
+              {moreQuestions.map((q) => (
                 <button
                   key={q}
                   type="button"

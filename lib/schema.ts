@@ -19,6 +19,13 @@ const upTo = <T extends z.ZodTypeAny>(item: T, min: number, max: number) =>
 
 const text = z.string().trim().min(1);
 
+// a missing, null or malformed list becomes [], and non-string items are dropped
+const stringList = z
+  .array(z.unknown())
+  .nullish()
+  .catch([])
+  .transform((a) => (a ?? []).filter((s): s is string => typeof s === "string"));
+
 /* ---------- one schema per scene type ---------- */
 
 const DiagramVisual = z
@@ -221,7 +228,8 @@ export const PlanSchema = z.object({
   mode: z.enum(["explain", "solve"]).catch("explain").default("explain"),
   questions: z
     .array(z.unknown())
-    .optional()
+    .nullish()
+    .catch([])
     .transform((qs) =>
       (qs ?? [])
         .map((q) => QuestionSchema.safeParse(q))
@@ -230,20 +238,30 @@ export const PlanSchema = z.object({
         .slice(0, 3)
     ),
   // questions on the slide beyond the 3 solved here, offered as chips to solve next
-  moreQuestions: z
-    .array(z.string())
-    .optional()
-    .transform((a) => (a ?? []).map((q) => q.trim()).filter(Boolean).slice(0, 10)),
+  moreQuestions: stringList.transform((a) => a.map((q) => q.trim()).filter(Boolean).slice(0, 10)),
   verification: z.unknown().optional().transform(() => undefined as Verification[] | undefined),
   scenes: ScenesSchema,
   // a text transcript of the slide, so follow-up questions never need the image again
-  slideText: z.string().optional().transform((s) => capWords(s, 320)),
+  slideText: z.string().nullish().catch(undefined).transform((s) => capWords(s ?? undefined, 320)),
   // questions a student might ask next, offered as chips under the player
-  suggestions: z
-    .array(z.string())
-    .optional()
-    .transform((a) => (a ?? []).map((q) => capWords(q, 15)).filter((q): q is string => !!q).slice(0, 3)),
+  suggestions: stringList.transform((a) => a.map((q) => capWords(q, 15)).filter((q): q is string => !!q).slice(0, 3)),
 });
+
+// Plans saved before a field existed (or by an older schema) can be missing it. Fills the gaps without
+// re-running PlanSchema, which would drop the server-set verification and verified badges.
+export function normalizePlan(raw: Plan): Plan {
+  const list = <T,>(a: T[] | undefined | null) => (Array.isArray(a) ? a : []);
+  return {
+    ...raw,
+    mode: raw.mode === "solve" ? "solve" : "explain",
+    questions: list(raw.questions),
+    moreQuestions: list(raw.moreQuestions).filter((q): q is string => typeof q === "string"),
+    suggestions: list(raw.suggestions).filter((q): q is string => typeof q === "string"),
+    scenes: list(raw.scenes),
+    verification: Array.isArray(raw.verification) ? raw.verification : undefined,
+    slideText: typeof raw.slideText === "string" ? raw.slideText : undefined,
+  };
+}
 
 /* ---------- follow-up chat ---------- */
 

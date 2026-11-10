@@ -2,7 +2,7 @@
 
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { WebSource } from "@/lib/otari";
-import type { Plan } from "@/lib/schema";
+import { normalizePlan, type Plan } from "@/lib/schema";
 
 // Explained slides are kept only in this browser's IndexedDB. The PDF itself is never stored.
 
@@ -76,8 +76,24 @@ export async function listSessions(): Promise<SessionSummary[]> {
   }));
 }
 
+// sessions saved by older versions can be missing newer fields; fill them in so they open cleanly
+function normalizeMessage(m: StoredMessage): StoredMessage {
+  const mini = m.mini?.status === "ready" ? { ...m.mini, plan: normalizePlan(m.mini.plan) } : m.mini;
+  return { ...m, content: m.content ?? "", sources: Array.isArray(m.sources) ? m.sources : undefined, mini };
+}
+
+function normalizeSession(s: Session): Session {
+  return {
+    ...s,
+    plan: normalizePlan(s.plan),
+    sources: Array.isArray(s.sources) ? s.sources : [],
+    messages: Array.isArray(s.messages) ? s.messages.map(normalizeMessage) : [],
+  };
+}
+
 export async function getSession(id: string) {
-  return (await db()).get("sessions", id);
+  const s = await (await db()).get("sessions", id);
+  return s && normalizeSession(s);
 }
 
 export async function createSession(input: Omit<Session, "id" | "createdAt" | "updatedAt" | "messages" | "sources">) {
