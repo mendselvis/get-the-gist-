@@ -1,124 +1,110 @@
-import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import type { Plan } from "@/lib/schema";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import type { Plan, Scene } from "@/lib/schema";
+import { AnswerScene } from "./scenes/Answer";
+import { ChartScene } from "./scenes/Chart";
+import { CodeScene } from "./scenes/Code";
+import { ComparisonScene } from "./scenes/Comparison";
+import { DefinitionScene } from "./scenes/Definition";
+import { DiagramScene } from "./scenes/Diagram";
+import { EquationScene } from "./scenes/Equation";
+import { HintScene } from "./scenes/Hint";
+import { ListScene } from "./scenes/List";
+import { QuizScene } from "./scenes/Quiz";
+import { SANS, SERIF, THEME, W, type Theme } from "./scenes/shared";
+import { TimelineScene } from "./scenes/Timeline";
+import { sceneAt } from "./timing";
 
-export const FPS = 30;
-export const STEP_FRAMES = 120; // 4 seconds per step
+export { FPS, sceneAt, sceneFrames, totalFrames } from "./timing";
 
-const W = 1280;
-const H = 720;
-const COLS = 3;
-const BW = 300;
-const BH = 110;
-const TOP = 120;
-const BOTTOM = 170; // room for the caption
+const ENTER_FRAMES = 12;
+const EXIT_FRAMES = 8;
 
-type Pt = { x: number; y: number };
-
-function boxPos(i: number, n: number): Pt {
-  const rows = Math.ceil(n / COLS);
-  const cellW = W / COLS;
-  const cellH = (H - TOP - BOTTOM) / rows;
-  const col = i % COLS;
-  const row = Math.floor(i / COLS);
-  return {
-    x: cellW * col + (cellW - BW) / 2,
-    y: TOP + cellH * row + (cellH - BH) / 2,
-  };
+function SceneVisual({ scene, local, duration, theme }: { scene: Scene; local: number; duration: number; theme: Theme }) {
+  const props = { local, duration, theme };
+  const v = scene.visual;
+  switch (v.type) {
+    case "diagram":
+      return <DiagramScene visual={v} {...props} />;
+    case "list":
+      return <ListScene visual={v} {...props} />;
+    case "comparison":
+      return <ComparisonScene visual={v} {...props} />;
+    case "timeline":
+      return <TimelineScene visual={v} {...props} />;
+    case "equation":
+      return <EquationScene visual={v} {...props} />;
+    case "code":
+      return <CodeScene visual={v} {...props} />;
+    case "definition":
+      return <DefinitionScene visual={v} {...props} />;
+    case "chart":
+      return <ChartScene visual={v} {...props} />;
+    case "quiz":
+      return <QuizScene visual={v} {...props} />;
+    case "answer":
+      return <AnswerScene visual={v} {...props} />;
+    case "hint":
+      return <HintScene visual={v} {...props} />;
+  }
 }
 
-// point on the border of a box centred at c, in the direction of o
-function edgePoint(c: Pt, o: Pt, gap = 6): Pt {
-  const dx = o.x - c.x;
-  const dy = o.y - c.y;
-  const t = Math.min((BW / 2 + gap) / Math.abs(dx || 1e-6), (BH / 2 + gap) / Math.abs(dy || 1e-6));
-  return { x: c.x + dx * t, y: c.y + dy * t };
-}
-
+// routes each scene to its component, with the shared heading, citation and transitions
 export const FlowVideo: React.FC<{ plan: Plan }> = ({ plan }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { index, start, duration } = sceneAt(plan, frame);
+  const scene = plan.scenes[index];
+  const local = frame - start;
+  const theme = scene.visual.type === "code" ? THEME.dark : THEME.light;
+  const isLast = index === plan.scenes.length - 1;
 
-  const stepIdx = Math.min(Math.floor(frame / STEP_FRAMES), plan.steps.length - 1);
-  const step = plan.steps[stepIdx];
-  const local = frame - stepIdx * STEP_FRAMES;
-  const pop = spring({ frame: local, fps, config: { damping: 12 } });
-  const active = new Set(step.highlight);
-
-  const centers: Record<string, Pt> = {};
-  plan.nodes.forEach((n, i) => {
-    const p = boxPos(i, plan.nodes.length);
-    centers[n.id] = { x: p.x + BW / 2, y: p.y + BH / 2 };
-  });
+  // fade and lift in; fade out before the next scene (the last one stays up).
+  // The first scene doesn't fade in, so the paused first frame (what a reopened session shows) isn't blank.
+  const fadeIn = index === 0 ? 1 : interpolate(local, [0, ENTER_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeOut = isLast ? 1 : interpolate(local, [duration - EXIT_FRAMES, duration], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const opacity = Math.min(fadeIn, fadeOut);
+  const heading = scene.heading || (scene.visual.type === "quiz" ? "Quick check" : scene.visual.type === "answer" ? "The answer" : scene.visual.type === "hint" ? "A hint first" : plan.title);
 
   return (
-    <AbsoluteFill style={{ background: "#0f172a", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ position: "absolute", top: 36, left: 48, right: 48, color: "#e2e8f0", fontSize: 40, fontWeight: 700 }}>
-        {plan.title}
-      </div>
+    <AbsoluteFill style={{ background: THEME.light.bg, fontFamily: SANS }}>
+      <AbsoluteFill style={{ background: theme.bg, opacity }}>
+        <div style={{ position: "absolute", top: 34, left: 56, right: 56, transform: `translateY(${(1 - fadeIn) * 10}px)` }}>
+          <div style={{ color: theme.muted, fontSize: 20, fontWeight: 700, letterSpacing: 1.6, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {plan.title} · {index + 1}/{plan.scenes.length}
+          </div>
+          <div style={{ marginTop: 6, color: theme.ink, fontFamily: SERIF, fontSize: 50, lineHeight: 1.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {heading}
+          </div>
+        </div>
 
-      <svg width={W} height={H} style={{ position: "absolute", inset: 0 }}>
-        <defs>
-          <marker id="arrow-dim" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#475569" />
-          </marker>
-          <marker id="arrow-on" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" fill="#38bdf8" />
-          </marker>
-        </defs>
+        <div style={{ position: "absolute", inset: 0, transform: `translateY(${(1 - fadeIn) * 16}px)` }}>
+          <SceneVisual scene={scene} local={local} duration={duration} theme={theme} />
+        </div>
 
-        {plan.edges.map((e, i) => {
-          const a = centers[e.from];
-          const b = centers[e.to];
-          if (!a || !b) return null;
-          const p1 = edgePoint(a, b);
-          const p2 = edgePoint(b, a);
-          const on = active.has(e.from) && active.has(e.to);
-          return (
-            <line
-              key={i}
-              x1={p1.x}
-              y1={p1.y}
-              x2={p2.x}
-              y2={p2.y}
-              stroke={on ? "#38bdf8" : "#475569"}
-              strokeWidth={on ? 5 : 3}
-              markerEnd={`url(#${on ? "arrow-on" : "arrow-dim"})`}
-            />
-          );
-        })}
-
-        {plan.nodes.map((n, i) => {
-          const p = boxPos(i, plan.nodes.length);
-          const on = active.has(n.id);
-          const scale = on ? 1 + 0.06 * pop : 1;
-          return (
-            <g
-              key={n.id}
-              transform={`translate(${p.x + BW / 2} ${p.y + BH / 2}) scale(${scale}) translate(${-BW / 2} ${-BH / 2})`}
-            >
-              <rect width={BW} height={BH} rx={16} fill={on ? "#0369a1" : "#1e293b"} stroke={on ? "#38bdf8" : "#334155"} strokeWidth={3} />
-              <text x={BW / 2} y={BH / 2 + 10} textAnchor="middle" fill="#f1f5f9" fontSize={30} fontWeight={600}>
-                {n.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      <div
-        style={{
-          position: "absolute",
-          left: 48,
-          right: 48,
-          bottom: 40,
-          color: "#f8fafc",
-          fontSize: 34,
-          lineHeight: 1.35,
-          opacity: Math.min(1, local / 10),
-        }}
-      >
-        {step.narration}
-      </div>
+        {scene.source && (
+          <div
+            style={{
+              position: "absolute",
+              left: 56,
+              bottom: 30,
+              maxWidth: W - 112,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 22px",
+              borderRadius: 999,
+              background: "#f9d4f2",
+              color: "#111",
+              fontSize: 24,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+          >
+            <span style={{ fontWeight: 700, flexShrink: 0 }}>From your slide:</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>“{scene.source}”</span>
+          </div>
+        )}
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };

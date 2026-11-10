@@ -11,6 +11,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "@remotion/player": "^4.0.535",
+    "idb": "^8.0.4",
+    "katex": "^0.16.47",
     "next": "16.4.2",
     "openai": "^7.47.0",
     "pdfjs-dist": "^6.4.299",
