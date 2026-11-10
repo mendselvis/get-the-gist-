@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { LogoMark } from "./Logo";
-import { GITHUB_URL } from "./links";
 import { Pill } from "./Pill";
 
 const SUBJECTS = [
@@ -275,14 +274,9 @@ export function ForStudents() {
 export function Footer() {
   return (
     <footer className="border-t border-line bg-white px-4 py-10 text-[#111] sm:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center text-sm text-muted sm:flex-row sm:text-left">
-        <div className="flex items-center gap-2.5">
-          <LogoMark className="h-5 w-5 text-ink" />
-          <p>Built by Elvis Mends at the University of Cape Coast · Made with Otari by Mozilla.ai</p>
-        </div>
-        <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="font-medium text-ink hover:underline">
-          GitHub
-        </a>
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-2.5 text-center text-sm text-muted sm:flex-row">
+        <LogoMark className="h-5 w-5 text-ink" />
+        <p>Built by Elvis Mends at the University of Cape Coast · Made with Otari by Mozilla.ai</p>
       </div>
     </footer>
   );

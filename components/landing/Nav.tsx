@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LogoMark } from "./Logo";
-import { GITHUB_URL, NAV_LINKS } from "./links";
+import { NAV_LINKS } from "./links";
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -53,14 +53,6 @@ export function Nav() {
         </ul>
 
         <div className="flex items-center gap-3 sm:gap-5">
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="hidden text-[15px] font-medium text-[#111] underline-offset-4 hover:underline md:inline"
-          >
-            GitHub
-          </a>
           <Link
             href="/app"
             className="inline-flex h-11 items-center rounded-full bg-[#111] px-5 text-[15px] font-medium text-white transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111]"
@@ -89,14 +81,9 @@ export function Nav() {
       {open && (
         <div id="mobile-menu" className="border-t border-[#eee] bg-white md:hidden">
           <ul className="mx-auto flex max-w-6xl flex-col px-4 py-3 text-[17px] font-medium text-[#111]">
-            {[...NAV_LINKS, { href: GITHUB_URL, label: "GitHub" }].map((l) => (
+            {NAV_LINKS.map((l) => (
               <li key={l.href}>
-                <a
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  {...(l.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
-                  className="block rounded-xl px-3 py-3 hover:bg-[#f5f5f5]"
-                >
+                <a href={l.href} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-3 hover:bg-[#f5f5f5]">
                   {l.label}
                 </a>
               </li>
