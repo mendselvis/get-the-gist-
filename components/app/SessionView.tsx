@@ -98,8 +98,9 @@ export default function SessionView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image, mediaType: "image/jpeg", approach: "solve", focus: question }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      // a host timeout returns an HTML page, not JSON
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Something went wrong. Try again.");
       const plan = data.plan as Plan;
       const next = await createSession({
         title: plan.title,

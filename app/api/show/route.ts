@@ -3,6 +3,9 @@ import { otariPlan } from "@/lib/providers/otari";
 import { buildMiniPrompt, extractJson } from "@/lib/providers/shared";
 import { PlanSchema } from "@/lib/schema";
 
+// Vercel stops the function at maxDuration; the model calls are aborted a little before that
+export const maxDuration = 60;
+const DEADLINE_MS = 55000;
 const MAX_MINI_SCENES = 3;
 
 const ShowSchema = z.object({
@@ -18,7 +21,7 @@ export async function POST(req: Request) {
   const { answer, title, slideText } = parsed.data;
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 60000);
+  const timer = setTimeout(() => ctrl.abort(), DEADLINE_MS);
   req.signal.addEventListener("abort", () => ctrl.abort());
   try {
     const text = await otariPlan(buildMiniPrompt(answer, title, slideText), ctrl.signal, "show");

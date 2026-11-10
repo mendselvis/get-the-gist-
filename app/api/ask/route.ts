@@ -2,6 +2,11 @@ import type OpenAI from "openai";
 import { chatModel, otariClient, searchSources, type WebSource } from "@/lib/otari";
 import { AskSchema, type AskInput } from "@/lib/schema";
 
+// Vercel stops the function at maxDuration, streaming included, so search and answer share a budget
+export const maxDuration = 60;
+const DEADLINE_MS = 55000;
+const SEARCH_TIMEOUT_MS = 20000;
+
 // a question asking for something to read goes through web search first
 const WANTS_SOURCES = /\b(sources?|references?|citations?|cite|further reading|read more|where can i (read|learn)|links?|textbooks?|papers?)\b/i;
 
@@ -48,7 +53,10 @@ export async function POST(req: Request) {
         let search: Awaited<ReturnType<typeof searchSources>> | null = null;
         if (WANTS_SOURCES.test(question)) {
           send({ t: "status", text: "Searching the web for sources…" });
-          search = await searchSources(`${question} (lecture topic: ${context.title})`, req.signal);
+          search = await searchSources(
+            `${question} (lecture topic: ${context.title})`,
+            AbortSignal.any([req.signal, AbortSignal.timeout(SEARCH_TIMEOUT_MS)])
+          );
           if ("sources" in search) send({ t: "sources", items: search.sources });
           else send({ t: "notice", text: `I couldn't search the web for sources: ${search.error}.` });
         }
@@ -60,7 +68,7 @@ export async function POST(req: Request) {
         ];
         const completion = await otariClient().chat.completions.create(
           { model, messages, stream: true, temperature: 0.3, max_tokens: 600 },
-          { signal: req.signal, timeout: 60000 }
+          { signal: AbortSignal.any([req.signal, AbortSignal.timeout(Math.max(1000, started + DEADLINE_MS - Date.now()))]) }
         );
         for await (const chunk of completion) {
           const text = chunk.choices?.[0]?.delta?.content;

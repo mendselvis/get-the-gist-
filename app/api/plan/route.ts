@@ -28,14 +28,31 @@ function dropUnaskedHints(plan: Plan, approach?: Approach): Plan {
   return scenes.length ? { ...plan, scenes } : plan;
 }
 
+// Vercel stops the function at maxDuration, so every step finishes by DEADLINE_MS and the route always
+// answers with JSON: verification is skipped, or its redo left out, when there isn't time for it.
+export const maxDuration = 60;
+const DEADLINE_MS = 54000;
+const MIN_VERIFY_MS = 12000;
+const MIN_REDO_MS = 20000;
+
 // Solve mode: check computational answers by running code; if one disagrees, redo the solution once
 // with the computed value, then mark which answers code confirmed.
-async function verifyPlan(input: SlideInput, plan: Plan, started: number): Promise<{ plan: Plan; ms: number; provider: string } | null> {
+async function verifyPlan(
+  input: SlideInput,
+  plan: Plan,
+  provider: string,
+  started: number,
+  deadline: number
+): Promise<{ plan: Plan; ms: number; provider: string } | null> {
   const checkable = plan.questions.map((q, i) => ({ q, i })).filter(({ q }) => isCheckable(q));
   if (plan.mode !== "solve" || checkable.length === 0) return null;
+  if (deadline - Date.now() < MIN_VERIFY_MS) {
+    console.log("[verify] skipped: not enough time left");
+    return null;
+  }
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 75000);
+  const timer = setTimeout(() => ctrl.abort(), deadline - Date.now());
   try {
     const results = await Promise.all(checkable.map(async ({ q, i }) => ({ i, q, r: await checkQuestion(q, ctrl.signal, plan.slideText) })));
     // timing and outcome only: never question text, answers or keys
@@ -45,10 +62,22 @@ async function verifyPlan(input: SlideInput, plan: Plan, started: number): Promi
       r.status === "match" ? { question: i, status: "verified", computed: r.computed } : { question: i, status: "unverified", ...("computed" in r ? { computed: r.computed } : {}) }
     );
     const wrong = results.filter(({ r }) => r.status === "mismatch") as { i: number; q: (typeof results)[number]["q"]; r: { computed: string } }[];
-    if (wrong.length === 0) return { plan: applyVerification(plan, verification), ms: Date.now() - started, provider: "otari" };
+    const checked = () => ({ plan: applyVerification(plan, verification), ms: Date.now() - started, provider });
+    if (wrong.length === 0) return checked();
+    // without a redo, a mismatch still shows the student what the code computed
+    if (deadline - Date.now() < MIN_REDO_MS) {
+      console.log("[verify] redo skipped: not enough time left");
+      return checked();
+    }
 
     // redo once, telling the model what the code computed
-    const redoResult = await generatePlan({ ...input, corrections: wrong.map(({ q, r }) => ({ question: q.text, computed: r.computed })) });
+    let redoResult: Awaited<ReturnType<typeof generatePlan>>;
+    try {
+      redoResult = await generatePlan({ ...input, corrections: wrong.map(({ q, r }) => ({ question: q.text, computed: r.computed })) }, deadline);
+    } catch (err) {
+      console.warn(`[verify] redo failed: ${err instanceof Error ? err.message : String(err)}`);
+      return checked();
+    }
     const redo = { ...redoResult, plan: dropUnaskedHints(redoResult.plan, input.approach) };
     const fixed: Verification[] = verification.map((v) => {
       const w = wrong.find((x) => x.i === v.question);
@@ -97,10 +126,11 @@ export async function POST(req: Request) {
 
   const input: SlideInput = { image, mediaType, instruction: cleaned || undefined, approach, focus: focusText || undefined };
   const started = Date.now();
+  const deadline = started + DEADLINE_MS;
   try {
-    const generated = await generatePlan(input);
+    const generated = await generatePlan(input, deadline);
     const result = { ...generated, plan: dropUnaskedHints(generated.plan, input.approach) };
-    const checked = await verifyPlan(input, result.plan, started);
+    const checked = await verifyPlan(input, result.plan, result.provider, started, deadline);
     return NextResponse.json(checked ?? result);
   } catch {
     return NextResponse.json({ error: "Could not build the video. Try again." }, { status: 502 });

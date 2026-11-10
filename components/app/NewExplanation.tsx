@@ -87,8 +87,9 @@ export default function NewExplanation() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image, mediaType, instruction: instruction.trim() || undefined, approach }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong");
+      // a host timeout returns an HTML page, not JSON
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Something went wrong. Try again.");
       plan = data.plan as Plan;
       meta = `${data.provider}, ${(data.ms / 1000).toFixed(1)}s`;
     } catch (err) {

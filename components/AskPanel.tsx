@@ -175,7 +175,7 @@ export default function AskPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answer, title: plan.title, slideText: plan.slideText }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error);
       update(i, { mini: { status: "ready", plan: data.plan } });
     } catch (err) {
