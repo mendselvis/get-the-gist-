@@ -19,7 +19,8 @@ export type StoredMessage = {
 export type Session = {
   id: string;
   title: string;
-  pdfName: string;
+  pdfName: string; // the PDF's or image's file name
+  source?: "pdf" | "image"; // missing on sessions saved before images were supported, which are PDFs
   pageNumber: number;
   slideThumbnail: string; // small JPEG data URL, about 240px wide
   plan: Plan;
@@ -31,7 +32,12 @@ export type Session = {
 };
 
 // what the sidebar needs, without loading every plan into memory
-export type SessionSummary = Pick<Session, "id" | "title" | "slideThumbnail" | "pdfName" | "pageNumber" | "updatedAt">;
+export type SessionSummary = Pick<Session, "id" | "title" | "slideThumbnail" | "pdfName" | "source" | "pageNumber" | "updatedAt">;
+
+// where the slide came from, for the sidebar and the session header
+export function sessionOrigin(s: Pick<Session, "pdfName" | "source" | "pageNumber">) {
+  return s.source === "image" ? s.pdfName : `Slide ${s.pageNumber} of ${s.pdfName}`;
+}
 
 interface GistDB extends DBSchema {
   sessions: { key: string; value: Session; indexes: { updatedAt: number } };
@@ -66,11 +72,12 @@ export function onSessionsChanged(listener: () => void) {
 
 export async function listSessions(): Promise<SessionSummary[]> {
   const all = await (await db()).getAllFromIndex("sessions", "updatedAt");
-  return all.reverse().map(({ id, title, slideThumbnail, pdfName, pageNumber, updatedAt }) => ({
+  return all.reverse().map(({ id, title, slideThumbnail, pdfName, source, pageNumber, updatedAt }) => ({
     id,
     title,
     slideThumbnail,
     pdfName,
+    source,
     pageNumber,
     updatedAt,
   }));

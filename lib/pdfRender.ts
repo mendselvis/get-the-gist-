@@ -1,4 +1,5 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { Deck } from "@/components/app/AppContext";
 
 // Rendering PDF pages in the browser, shared by the slide picker and saved sessions.
 
@@ -34,6 +35,11 @@ export function dataUrlBytes(url: string) {
   const b64 = url.slice(url.indexOf(",") + 1);
   const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
   return (b64.length * 3) / 4 - padding;
+}
+
+// the slide to send for one page of the open deck: rendered for a PDF, already prepared for an image
+export async function deckImageForModel(deck: Deck, pageNumber: number) {
+  return deck.kind === "image" ? deck.image : renderForModel(deck.pdf, pageNumber);
 }
 
 // the page as a JPEG big enough for the model to read but always under 1 MB; null if even the smallest is too big

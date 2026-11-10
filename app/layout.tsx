@@ -22,7 +22,7 @@ const instrumentSerif = localFont({
 export const metadata: Metadata = {
   title: "Get the Gist: any slide, explained in seconds",
   description:
-    "Upload your lecture slides, tap a page, and watch it turn into a short animated explainer. Built for students who learn by seeing.",
+    "Add a PDF, screenshot or photo of a lecture slide and watch it turn into a short animated explainer. Built for students who learn by seeing.",
 };
 
 export const viewport: Viewport = {

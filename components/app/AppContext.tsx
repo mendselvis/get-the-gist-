@@ -4,10 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { listSessions, onSessionsChanged, type SessionSummary } from "@/lib/sessions";
 
-/* ---------- the open PDF ---------- */
+/* ---------- the open PDF or image ---------- */
 
-// lives above the routes, so "Explain another slide from this deck" can reuse the file without re-uploading it
-export type Deck = { pdf: PDFDocumentProxy; fileName: string; numPages: number; ratio: number };
+// lives above the routes, so "Explain another slide from this deck" can reuse the file without re-uploading it.
+// An image (screenshot or photo) is one slide, already prepared for sending.
+export type Deck =
+  | { kind: "pdf"; pdf: PDFDocumentProxy; fileName: string; numPages: number; ratio: number }
+  | { kind: "image"; image: string; thumbnail: string; fileName: string; numPages: 1; ratio: number };
 
 type DeckState = {
   deck: Deck | null;
@@ -50,14 +53,20 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   // a new deck frees the old PDF and starts its thumbnails from scratch
   const setDeck = useCallback((next: Deck | null) => {
-    if (deckRef.current && deckRef.current !== next) void deckRef.current.pdf.loadingTask.destroy();
+    const old = deckRef.current;
+    if (old?.kind === "pdf" && old !== next) void old.pdf.loadingTask.destroy();
     deckRef.current = next;
     requested.current = new Set();
     setThumbs({});
     setDeckState(next);
   }, []);
   const setThumb = useCallback((index: number, url: string) => setThumbs((t) => ({ ...t, [index]: url })), []);
-  useEffect(() => () => void deckRef.current?.pdf.loadingTask.destroy(), []);
+  useEffect(
+    () => () => {
+      if (deckRef.current?.kind === "pdf") void deckRef.current.pdf.loadingTask.destroy();
+    },
+    []
+  );
 
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loaded, setLoaded] = useState(false);

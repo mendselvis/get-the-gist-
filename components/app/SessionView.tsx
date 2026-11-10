@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { renderForModel } from "@/lib/pdfRender";
+import { deckImageForModel } from "@/lib/pdfRender";
 import type { Plan } from "@/lib/schema";
-import { createSession, getSession, updateSession, type Session, type StoredMessage } from "@/lib/sessions";
+import { createSession, getSession, sessionOrigin, updateSession, type Session, type StoredMessage } from "@/lib/sessions";
 import { useDeck, useSessions } from "./AppContext";
 import { Explanation } from "./Explanation";
 
@@ -86,12 +86,12 @@ export default function SessionView() {
   const saveMessages = useCallback((messages: StoredMessage[]) => void updateSession(id, { messages }), [id]);
   const [solving, setSolving] = useState<{ question: string } | { error: string } | null>(null);
 
-  // solve one of the slide's extra questions as its own explanation (needs the same PDF still open)
+  // solve one of the slide's extra questions as its own explanation (needs the same PDF or image still open)
   async function solveQuestion(session: Session, question: string) {
-    if (!deck || deck.fileName !== session.pdfName) return;
+    if (!deck || deck.fileName !== session.pdfName || deck.kind !== (session.source ?? "pdf")) return;
     setSolving({ question });
     try {
-      const image = await renderForModel(deck.pdf, session.pageNumber);
+      const image = await deckImageForModel(deck, session.pageNumber);
       if (!image) throw new Error("That slide is too detailed to send.");
       const res = await fetch("/api/plan", {
         method: "POST",
@@ -105,6 +105,7 @@ export default function SessionView() {
       const next = await createSession({
         title: plan.title,
         pdfName: session.pdfName,
+        source: session.source,
         pageNumber: session.pageNumber,
         slideThumbnail: session.slideThumbnail,
         plan,
@@ -133,14 +134,15 @@ export default function SessionView() {
   }
 
   const { session } = state;
-  const sameDeckOpen = deck?.fileName === session.pdfName;
+  // the same PDF or image is still open, so its extra questions can be solved without re-uploading
+  const sameDeckOpen = deck?.fileName === session.pdfName && deck.kind === (session.source ?? "pdf");
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12 lg:pl-16">
       {/* keyed by title too: this page is kept alive while hidden, and the sidebar may rename it meanwhile */}
       <EditableTitle key={`${session.id}:${session.title}`} session={session} />
       <p className="mt-2 text-sm text-muted">
-        Slide {session.pageNumber} of {session.pdfName} · {dateFormat.format(session.createdAt)}
+        {sessionOrigin(session)} · {dateFormat.format(session.createdAt)}
       </p>
 
       <Explanation
@@ -158,7 +160,7 @@ export default function SessionView() {
               : `To solve these, open ${session.pdfName} again with New explanation, then come back.`
         }
         actions={
-          sameDeckOpen ? (
+          sameDeckOpen && deck?.kind === "pdf" ? (
             <button
               type="button"
               onClick={() => router.push("/app/new")}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LogoMark } from "@/components/landing/Logo";
-import { clearSessions, deleteSession, updateSession, type SessionSummary } from "@/lib/sessions";
+import { clearSessions, deleteSession, sessionOrigin, updateSession, type SessionSummary } from "@/lib/sessions";
 import { useSessions } from "./AppContext";
 import { useConfirm } from "./Confirm";
 
@@ -104,9 +104,7 @@ function SessionItem({ s, active, onNavigate }: { s: SessionSummary; active: boo
           className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-2xl"
         >
           <span className="block truncate text-sm font-medium text-[#111]">{s.title}</span>
-          <span className="block truncate text-xs text-label">
-            Slide {s.pageNumber} · {s.pdfName}
-          </span>
+          <span className="block truncate text-xs text-label">{sessionOrigin(s)}</span>
         </Link>
       )}
 

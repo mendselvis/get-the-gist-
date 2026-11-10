@@ -108,14 +108,14 @@ function WatchIllustration() {
 
 const STEPS = [
   {
-    title: "Drop your PDF",
-    body: "It stays on your device. Only the one page you pick is sent to be explained.",
+    title: "Add a PDF, screenshot or photo",
+    body: "It stays on your device. Only the one slide you pick is sent to be explained.",
     art: <DropIllustration />,
     bg: "bg-sky",
   },
   {
     title: "Tap the slide that confuses you",
-    body: "Scroll through your deck and pick the page you keep rereading.",
+    body: "Scroll through your deck and pick the page you keep rereading. A screenshot or photo is ready to go.",
     art: <TapIllustration />,
     bg: "bg-blush",
   },
@@ -204,8 +204,8 @@ const FEATURES: { title: string; body: string; className: string; extra?: ReactN
     extra: <MiniFlow />,
   },
   {
-    title: "Works with any lecture PDF",
-    body: "Export your slides from PowerPoint, Keynote or Google Slides and drop them in.",
+    title: "PDF, screenshot or photo",
+    body: "Drop in slides from PowerPoint, Keynote or Google Slides, paste a screenshot, or snap the projector screen with your phone.",
     className: "bg-blush",
   },
   {
@@ -221,7 +221,7 @@ const FEATURES: { title: string; body: string; className: string; extra?: ReactN
   },
   {
     title: "Privacy-minded",
-    body: "Your full PDF never leaves your browser. Only the page you choose is sent, as an image.",
+    body: "Your file never leaves your browser. Only the slide you choose is sent, as a small image.",
     className: "bg-mint md:col-span-2",
   },
   {

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import InstructionBox from "@/components/InstructionBox";
-import PdfPicker from "@/components/PdfPicker";
+import SlidePicker from "@/components/SlidePicker";
 import type { Approach } from "@/lib/providers/shared";
 import type { Plan } from "@/lib/schema";
 import { createSession } from "@/lib/sessions";
@@ -102,6 +102,7 @@ export default function NewExplanation() {
       const session = await createSession({
         title: plan.title,
         pdfName: deck?.fileName ?? "Slides",
+        source: deck?.kind ?? "pdf",
         pageNumber: pageIndex + 1,
         slideThumbnail: thumbnail,
         plan,
@@ -119,13 +120,15 @@ export default function NewExplanation() {
     <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-8 sm:px-6 sm:pt-14 lg:pl-16">
       <h1 className="font-serif text-5xl leading-none tracking-[-0.02em] sm:text-6xl">Explain a slide</h1>
       <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-muted">
-        {deck
-          ? `Pick another slide from ${deck.fileName}, or choose a different PDF.`
-          : "Choose your slides as a PDF, tap the page you want, and watch it explained. Your PDF stays on this device."}
+        {deck?.kind === "pdf"
+          ? `Pick another slide from ${deck.fileName}, or choose a different file.`
+          : deck?.kind === "image"
+            ? "Make a video from this image, or choose a different file."
+            : "Choose a PDF, screenshot or photo of your slide and watch it explained. Your file stays on this device."}
       </p>
 
       <div className="mt-8">
-        <PdfPicker
+        <SlidePicker
           onPick={generate}
           busy={loading}
           beforeAction={

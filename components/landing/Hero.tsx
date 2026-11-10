@@ -12,8 +12,8 @@ export function Hero() {
           Explained in seconds.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-muted sm:text-lg">
-          Upload your lecture slides, tap a page, and watch it turn into a short animated explainer. Built for
-          students who learn by seeing.
+          Add a PDF, screenshot or photo of your lecture slide, and watch it turn into a short animated explainer.
+          Built for students who learn by seeing.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Pill href="/app" size="lg">
