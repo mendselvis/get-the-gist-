@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { PROMPT, type SlideInput } from "./shared";
+import { buildPrompt, type SlideInput } from "./shared";
 
-export async function callAnthropic({ image, mediaType }: SlideInput, signal: AbortSignal) {
+export async function callAnthropic({ image, mediaType, ...opts }: SlideInput, signal: AbortSignal) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY missing");
   const client = new Anthropic();
 
@@ -17,7 +17,7 @@ export async function callAnthropic({ image, mediaType }: SlideInput, signal: Ab
               type: "image",
               source: { type: "base64", media_type: mediaType as "image/png" | "image/jpeg", data: image },
             },
-            { type: "text", text: PROMPT },
+            { type: "text", text: buildPrompt(opts) },
           ],
         },
       ],

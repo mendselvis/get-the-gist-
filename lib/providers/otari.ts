@@ -1,9 +1,12 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
+import { otariClient, planModels } from "@/lib/otari";
 import { PlanSchema } from "@/lib/schema";
-import { PROMPT, extractJson, type SlideInput } from "./shared";
+import { buildPrompt, extractJson, type SlideInput } from "./shared";
 
-const BASE_URL = "https://otari.ai/api/v1";
-const CALL_TIMEOUT_MS = 15000;
+// plans include the slide transcript, suggested questions and, when solving, worked steps, so replies run long
+const CALL_TIMEOUT_MS = 45000;
+
+type UserContent = OpenAI.Chat.ChatCompletionUserMessageParam["content"];
 
 // returns null if the reply is a valid plan, otherwise a short reason for the retry prompt
 function checkPlan(text: string): string | null {
@@ -21,15 +24,11 @@ function checkPlan(text: string): string | null {
     .join("; ");
 }
 
-export async function callOtari({ image, mediaType }: SlideInput, signal: AbortSignal) {
-  const key = process.env.OTARI_API_KEY;
-  if (!key) throw new Error("OTARI_API_KEY missing");
-  const models = [process.env.OTARI_MODEL, process.env.OTARI_FALLBACK_MODEL]
-    .map((m) => m?.trim())
-    .filter((m): m is string => !!m);
+// asks the plan models for a plan: one retry per model if the JSON is invalid, then the next model
+export async function otariPlan(content: UserContent, signal: AbortSignal, label = "plan") {
+  const models = planModels();
   if (models.length === 0) throw new Error("OTARI_MODEL missing");
-
-  const client = new OpenAI({ apiKey: key, baseURL: BASE_URL, defaultHeaders: { "Otari-Key": key } });
+  const client = otariClient();
 
   async function ask(model: string, messages: OpenAI.Chat.ChatCompletionMessageParam[]) {
     const res = await client.chat.completions.create(
@@ -42,19 +41,11 @@ export async function callOtari({ image, mediaType }: SlideInput, signal: AbortS
   const failures: string[] = [];
   for (const model of models) {
     try {
-      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: PROMPT },
-            { type: "image_url", image_url: { url: `data:${mediaType};base64,${image}` } },
-          ],
-        },
-      ];
+      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "user", content }];
       const first = await ask(model, messages);
       const problem = checkPlan(first);
       if (!problem) {
-        console.log(`[plan] otari model ${model} ok`);
+        console.log(`[${label}] otari model ${model} ok`);
         return first;
       }
 
@@ -68,7 +59,7 @@ export async function callOtari({ image, mediaType }: SlideInput, signal: AbortS
       );
       const second = await ask(model, messages);
       if (!checkPlan(second)) {
-        console.log(`[plan] otari model ${model} ok after retry`);
+        console.log(`[${label}] otari model ${model} ok after retry`);
         return second;
       }
       failures.push(`${model}: invalid JSON twice`);
@@ -78,4 +69,14 @@ export async function callOtari({ image, mediaType }: SlideInput, signal: AbortS
     }
   }
   throw new Error(`Otari failed (${failures.join(" | ")})`);
+}
+
+export function callOtari({ image, mediaType, ...opts }: SlideInput, signal: AbortSignal) {
+  return otariPlan(
+    [
+      { type: "text", text: buildPrompt(opts) },
+      { type: "image_url", image_url: { url: `data:${mediaType};base64,${image}` } },
+    ],
+    signal
+  );
 }

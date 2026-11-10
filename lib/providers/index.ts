@@ -15,8 +15,8 @@ const callers: Record<ProviderName, (i: SlideInput, s: AbortSignal) => Promise<s
 };
 
 const TIMEOUT_MS = 15000;
-// otari can make up to 4 calls (2 models x 1 JSON retry), each capped at 15s inside otari.ts
-const TIMEOUT_MS_BY_PROVIDER: Partial<Record<ProviderName, number>> = { otari: 60000 };
+// otari can make up to 4 calls (2 models x 1 JSON retry), each capped at 45s inside otari.ts
+const TIMEOUT_MS_BY_PROVIDER: Partial<Record<ProviderName, number>> = { otari: 100000 };
 
 const DEFAULT_FALLBACKS = "anthropic,gemini,groq";
 

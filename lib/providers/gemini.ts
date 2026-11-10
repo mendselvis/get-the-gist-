@@ -1,6 +1,6 @@
-import { PROMPT, type SlideInput } from "./shared";
+import { buildPrompt, type SlideInput } from "./shared";
 
-export async function callGemini({ image, mediaType }: SlideInput, signal: AbortSignal) {
+export async function callGemini({ image, mediaType, ...opts }: SlideInput, signal: AbortSignal) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY missing");
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -13,7 +13,7 @@ export async function callGemini({ image, mediaType }: SlideInput, signal: Abort
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [
-          { parts: [{ inline_data: { mime_type: mediaType, data: image } }, { text: PROMPT }] },
+          { parts: [{ inline_data: { mime_type: mediaType, data: image } }, { text: buildPrompt(opts) }] },
         ],
         generationConfig: { responseMimeType: "application/json" },
       }),

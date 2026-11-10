@@ -1,6 +1,6 @@
-import { PROMPT, type SlideInput } from "./shared";
+import { buildPrompt, type SlideInput } from "./shared";
 
-export async function callGroq({ image, mediaType }: SlideInput, signal: AbortSignal) {
+export async function callGroq({ image, mediaType, ...opts }: SlideInput, signal: AbortSignal) {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY missing");
   const model = process.env.GROQ_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
@@ -17,7 +17,7 @@ export async function callGroq({ image, mediaType }: SlideInput, signal: AbortSi
         {
           role: "user",
           content: [
-            { type: "text", text: PROMPT },
+            { type: "text", text: buildPrompt(opts) },
             { type: "image_url", image_url: { url: `data:${mediaType};base64,${image}` } },
           ],
         },
